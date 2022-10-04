@@ -1,0 +1,92 @@
+<?php
+
+/**
+ * @file
+ * Tntegrate the third party Postmark mail service with Drupal.
+ */
+
+use Drupal\Core\Url;
+
+/**
+ * Implements hook_mail().
+ */
+function postmark_mail($key, &$message, $params) {
+  $message['subject'] = t('Postmark Test Run Email');
+  $message['body'][] = t('Your site is properly configured to send emails using the Postmark library.');
+}
+
+/**
+ * Implements hook_theme().
+ */
+function postmark_theme() {
+  return [
+    'postmark_message' => [
+      'variables' => [
+        'module' => '',
+        'key' => '',
+        'recipient' => '',
+        'subject' => '',
+        'body' => '',
+        'cta_text' => '',
+        'cta_url' => '',
+        'footer' => '',
+      ],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ */
+function template_preprocess_postmark_message(array &$variables) {
+  $config = \Drupal::config('system.site');
+  $variables['site_name'] = $config->get('name');
+  $variables['site_url'] = Url::fromRoute('<front>')->toString();
+  $variables['module'] = str_replace('_', '-', $variables['module']);
+  $variables['key'] = str_replace('_', '-', $variables['key']);
+
+  $config = \Drupal::config('system.theme');
+  $variables['logo_url'] = NULL;
+  $logo = str_replace('.svg', '-print.png', theme_get_setting('logo.url', $config->get('default')));
+  if (file_exists(ltrim($logo, '/'))) {
+    $variables['logo_url'] = Url::fromUserInput($logo)->setAbsolute()->toString();
+  }
+  $variables['logo_width'] = '240px';
+
+  $theme = \Drupal::service('theme.manager')->getActiveTheme();
+  $path_resolver = \Drupal::service('extension.path.resolver');
+  $path = $path_resolver->getPath('theme', $theme->getName());
+  $css_path = $path . '/assets/css/email.css';
+  if (file_exists($css_path)) {
+    $variables['css'] = file_get_contents($css_path);
+  }
+
+  $variables['primary_color'] = '#226127';
+  $variables['secondary_color'] = '#56bceb';
+  if (function_exists('exo_theme_colors')) {
+    $colors = exo_theme_colors();
+    $variables['primary_color'] = $colors['primary']['hex'] ?? $variables['primary_color'];
+    $variables['secondary_color'] = $colors['secondary']['hex'] ?? $variables['secondary_color'];
+  }
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK().
+ *
+ * The template used is the one that is most specific. The theme system
+ * looks for templates starting at the end of the $hook array and works
+ * towards the beginning, so for the core user module's 'password_reset'
+ * email the order of precedence for selecting the template used will be:
+ * 1. postmark-message--user--password-reset.html.twig
+ * 2. postmark-message--user.html.twig
+ * 3. postmark-message.html.twig
+ * Note that postmark-message.html.twig is the default template for
+ * messages sent by the Mime Mail module, and will be used by default
+ * unless a more-specific template is found.
+ */
+function postmark_theme_suggestions_postmark_message(array $variables) {
+  return [
+    'postmark_message__' . $variables['module'],
+    'postmark_message__' . $variables['module'] . '__' . $variables['key'],
+  ];
+}

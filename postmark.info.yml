@@ -1,0 +1,8 @@
+name: Postmark
+type: module
+description: Send email using the third party Postmark service.
+core_version_requirement: ^8 || ^9
+package: Mail
+configure: postmark.settings
+dependencies:
+  - mailsystem
