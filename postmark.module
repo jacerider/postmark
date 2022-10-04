@@ -47,7 +47,7 @@ function template_preprocess_postmark_message(array &$variables) {
 
   $config = \Drupal::config('system.theme');
   $variables['logo_url'] = NULL;
-  $logo = str_replace('.svg', '-print.png', theme_get_setting('logo.url', $config->get('default')));
+  $logo = str_replace('.svg', '-email.png', theme_get_setting('logo.url', $config->get('default')));
   if (file_exists(ltrim($logo, '/'))) {
     $variables['logo_url'] = Url::fromUserInput($logo)->setAbsolute()->toString();
   }
