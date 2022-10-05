@@ -7,7 +7,6 @@ use Drupal\Core\Mail\MailInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\postmark\PostmarkHandler;
 use Html2Text\Html2Text;
-use Drupal\Component\Utility\Html;
 use Drupal\Core\Render\Markup;
 use Drupal\Core\Render\RendererInterface;
 use Postmark\Models\PostmarkAttachment;
