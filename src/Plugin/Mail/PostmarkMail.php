@@ -132,6 +132,7 @@ class PostmarkMail implements MailInterface, ContainerFactoryPluginInterface {
 
     $body = $this->renderer->renderPlain($body);
     $message['body'] = $body;
+    $message['headers']['Content-Type'] = 'text/html';
 
     return $message;
   }
