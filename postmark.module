@@ -30,6 +30,7 @@ function postmark_theme() {
         'cta_text' => '',
         'cta_url' => '',
         'footer' => '',
+        'bottom' => '',
       ],
     ],
   ];
@@ -41,13 +42,13 @@ function postmark_theme() {
 function template_preprocess_postmark_message(array &$variables) {
   $config = \Drupal::config('system.site');
   $variables['site_name'] = $config->get('name');
-  $variables['site_url'] = Url::fromRoute('<front>')->toString();
+  $variables['site_url'] = Url::fromRoute('<front>')->setAbsolute()->toString();
   $variables['module'] = str_replace('_', '-', $variables['module']);
   $variables['key'] = str_replace('_', '-', $variables['key']);
 
   $config = \Drupal::config('system.theme');
   $variables['logo_url'] = NULL;
-  $logo = str_replace('.svg', '-email.png', theme_get_setting('logo.url', $config->get('default')));
+  $logo = str_replace(['.png', '.svg'], '-email.png', theme_get_setting('logo.url', $config->get('default')));
   if (file_exists(ltrim($logo, '/'))) {
     $variables['logo_url'] = Url::fromUserInput($logo)->setAbsolute()->toString();
   }
