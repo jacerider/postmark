@@ -3,6 +3,7 @@
   "description": "Integrate the third party Postmark mail service with Drupal.",
   "type": "drupal-module",
   "require": {
+    "drupal/core": "^9.3 || ^10",
     "html2text/html2text": "^4.3",
     "wildbit/postmark-php": "^4.0"
   }
