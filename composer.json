@@ -2,6 +2,7 @@
   "name": "jacerider/postmark",
   "description": "Integrate the third party Postmark mail service with Drupal.",
   "type": "drupal-module",
+  "license": "GPL-2.0-or-later",
   "require": {
     "drupal/core": "^9.3 || ^10",
     "html2text/html2text": "^4.3",
