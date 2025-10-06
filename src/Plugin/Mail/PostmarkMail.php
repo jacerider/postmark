@@ -2,7 +2,9 @@
 
 namespace Drupal\postmark\Plugin\Mail;
 
+use Drupal\Component\Utility\DeprecationHelper;
 use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Mail\MailInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\postmark\PostmarkHandler;
@@ -23,6 +25,13 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * )
  */
 class PostmarkMail implements MailInterface, ContainerFactoryPluginInterface {
+
+  /**
+   * The module handler service.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $moduleHandler;
 
   /**
    * Configuration object.
@@ -55,6 +64,8 @@ class PostmarkMail implements MailInterface, ContainerFactoryPluginInterface {
   /**
    * Constructs a Postmark mailer.
    *
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
+   *   The module handler service.
    * @param \Drupal\Core\Config\ImmutableConfig $settings
    *   The configuration settings.
    * @param \Psr\Log\LoggerInterface $logger
@@ -64,7 +75,8 @@ class PostmarkMail implements MailInterface, ContainerFactoryPluginInterface {
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer service.
    */
-  public function __construct(ImmutableConfig $settings, LoggerInterface $logger, PostmarkHandler $postmark_handler, RendererInterface $renderer) {
+  public function __construct(ModuleHandlerInterface $module_handler, ImmutableConfig $settings, LoggerInterface $logger, PostmarkHandler $postmark_handler, RendererInterface $renderer) {
+    $this->moduleHandler = $module_handler;
     $this->config = $settings;
     $this->logger = $logger;
     $this->postmarkHandler = $postmark_handler;
@@ -76,6 +88,7 @@ class PostmarkMail implements MailInterface, ContainerFactoryPluginInterface {
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
     return new static(
+      $container->get('module_handler'),
       $container->get('config.factory')->get('postmark.settings'),
       $container->get('logger.factory')->get('postmark'),
       $container->get('postmark.mail_handler'),
@@ -99,38 +112,49 @@ class PostmarkMail implements MailInterface, ContainerFactoryPluginInterface {
     $subject = $message['subject'];
     $body = $message['body'];
 
-    if (is_array($body) && !isset($body['#type']) && !isset($body['#theme'])) {
-      // We always send HTML e-mails. Prepare strings as HTML.
-      foreach ($body as $key => &$item) {
-        if (is_string($item)) {
-          $item = [
-            '#markup' => implode('', array_map(function ($line) use ($message) {
-              return check_markup($line, 'plain_text', $message['langcode']);
-            }, explode("\n", $item))),
-          ];
-        }
-        elseif ($item instanceof Markup) {
-          $item = [
-            '#markup' => $item,
-          ];
+    // Mail theme module takes precedence over Postmark theme.
+    if ($this->moduleHandler->moduleExists('mail_theme')) {
+      $body = reset($body);
+    }
+    else {
+      if (is_array($body) && !isset($body['#type']) && !isset($body['#theme'])) {
+        // We always send HTML e-mails. Prepare strings as HTML.
+        foreach ($body as $key => &$item) {
+          if (is_string($item)) {
+            $item = [
+              '#markup' => implode('', array_map(function ($line) use ($message) {
+                return check_markup($line, 'plain_text', $message['langcode']);
+              }, explode("\n", $item))),
+            ];
+          }
+          elseif ($item instanceof Markup) {
+            $item = [
+              '#markup' => $item,
+            ];
+          }
         }
       }
+      // Wrap the message in the Postmark theme.
+      $body = [
+        '#theme' => 'postmark_message',
+        '#module' => $module,
+        '#key' => $key,
+        '#recipient' => $to,
+        '#subject' => $subject,
+        '#body' => $body,
+        '#cta_text' => $message['params']['cta_text'] ?? '',
+        '#cta_url' => $message['params']['cta_url'] ?? '',
+        '#primary_color' => '',
+        '#secondary_color' => '',
+      ];
+
+      $body = DeprecationHelper::backwardsCompatibleCall(
+        currentVersion: \Drupal::VERSION,
+        deprecatedVersion: '10.3',
+        currentCallable: fn() => $this->renderer->renderInIsolation($body),
+        deprecatedCallable: fn() => $this->renderer->renderPlain($body),
+      );
     }
-
-    $body = [
-      '#theme' => 'postmark_message',
-      '#module' => $module,
-      '#key' => $key,
-      '#recipient' => $to,
-      '#subject' => $subject,
-      '#body' => $body,
-      '#cta_text' => $message['params']['cta_text'] ?? '',
-      '#cta_url' => $message['params']['cta_url'] ?? '',
-      '#primary_color' => '',
-      '#secondary_color' => '',
-    ];
-
-    $body = $this->renderer->renderPlain($body);
     $message['body'] = $body;
     $message['headers']['Content-Type'] = 'text/html';
 
@@ -183,9 +207,10 @@ class PostmarkMail implements MailInterface, ContainerFactoryPluginInterface {
     if (!empty($message['params']['attachments'])) {
       $attachments = [];
       foreach ($message['params']['attachments'] as $attachment) {
-        if (file_exists($attachment['filepath']) && !empty($attachment['filename'])) {
+        if (file_exists($attachment['filepath'])) {
           $mime = $attachment['filemime'] ?? NULL;
-          $attachments[] = PostmarkAttachment::fromFile($attachment['filepath'], $attachment['filename'], $mime);
+          $filename = $attachment['filename'] ?? basename($attachment['filepath']);
+          $attachments[] = PostmarkAttachment::fromFile($attachment['filepath'], $filename, $mime);
         }
       }
 
