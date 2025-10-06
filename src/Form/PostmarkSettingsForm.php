@@ -2,10 +2,8 @@
 
 namespace Drupal\postmark\Form;
 
-use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\postmark\PostmarkHandler;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -21,27 +19,13 @@ class PostmarkSettingsForm extends ConfigFormBase {
   protected $postmarkHandler;
 
   /**
-   * Constructs a Postmark settings form.
-   *
-   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
-   *   The factory for configuration objects.
-   * @param \Drupal\postmark\PostmarkHandler $postmark_handler
-   *   The core mail manager service.
-   */
-  public function __construct(ConfigFactoryInterface $config_factory, PostmarkHandler $postmark_handler) {
-    parent::__construct($config_factory);
-
-    $this->postmarkHandler = $postmark_handler;
-  }
-
-  /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    return new static(
-      $container->get('config.factory'),
-      $container->get('postmark.mail_handler')
-    );
+    $instance = parent::create($container);
+    $instance->postmarkHandler = $container->get('postmark.mail_handler');
+
+    return $instance;
   }
 
   /**
@@ -109,7 +93,7 @@ class PostmarkSettingsForm extends ConfigFormBase {
       '#default_value' => '',
       '#description' => $this->t('Enter a valid email address to send a test email.'),
     ];
-  
+
     return parent::buildForm($form, $form_state);
   }
 
@@ -141,7 +125,7 @@ class PostmarkSettingsForm extends ConfigFormBase {
       ]);
 
       $this->messenger()->addWarning($message);
-  
+
       $postmark_message = [
         'from' => $form_state->getValue('postmark_sender_signature'),
         'to' => $test_address,
