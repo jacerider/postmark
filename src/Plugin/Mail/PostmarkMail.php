@@ -2,7 +2,6 @@
 
 namespace Drupal\postmark\Plugin\Mail;
 
-use Drupal\Component\Utility\DeprecationHelper;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Mail\MailInterface;
@@ -148,12 +147,17 @@ class PostmarkMail implements MailInterface, ContainerFactoryPluginInterface {
         '#secondary_color' => '',
       ];
 
-      $body = DeprecationHelper::backwardsCompatibleCall(
-        currentVersion: \Drupal::VERSION,
-        deprecatedVersion: '10.3',
-        currentCallable: fn() => $this->renderer->renderInIsolation($body),
-        deprecatedCallable: fn() => $this->renderer->renderPlain($body),
-      );
+      if (class_exists(DeprecationHelper::class)) {
+        $body = DeprecationHelper::backwardsCompatibleCall(
+          currentVersion: \Drupal::VERSION,
+          deprecatedVersion: '10.3',
+          currentCallable: fn() => $this->renderer->renderInIsolation($body),
+          deprecatedCallable: fn() => $this->renderer->renderPlain($body),
+        );
+      }
+      else {
+        $body = $this->renderer->renderPlain($body);
+      }
     }
     $message['body'] = $body;
     $message['headers']['Content-Type'] = 'text/html';
