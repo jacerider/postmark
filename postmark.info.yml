@@ -3,7 +3,7 @@ type: module
 description: Send email using the third party Postmark service.
 core_version_requirement: '^9.3 || ^10 || ^11'
 package: Mail
-version: 0.0.0
+version: 1.0.8
 configure: postmark.settings
 dependencies:
   - mailsystem
